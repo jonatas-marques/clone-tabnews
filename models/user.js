@@ -28,7 +28,6 @@ async function create(userImputValues) {
     }
   }
   async function validateUniqueUsername(username) {
-    console.log("Validating username:", username);
     const results = await database.query({
       text: `
       SELECT 
@@ -40,7 +39,6 @@ async function create(userImputValues) {
       ;`,
       values: [username],
     });
-    console.log("Username query results:", results.rows);
     if (results.rowCount > 0) {
       throw new ValidationError({
         message: "Nome de usuário já está em uso.",
