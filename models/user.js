@@ -1,5 +1,6 @@
 import database from "infra/database.js";
 import { ValidationError, NotFoundError } from "infra/errors.js";
+import password from "models/password.js";
 
 async function findOneByUsername(username) {
   const userFound = await runSelectQuery(username);
@@ -33,50 +34,12 @@ async function findOneByUsername(username) {
 }
 
 async function create(userImputValues) {
-  await validateUniqueEmail(userImputValues.email);
   await validateUniqueUsername(userImputValues.username);
+  await validateUniqueEmail(userImputValues.email);
+  await hashPasswordInObject(userImputValues);
 
   const newUser = await runInsertQuery(userImputValues);
   return newUser;
-
-  async function validateUniqueEmail(email) {
-    const results = await database.query({
-      text: `
-      SELECT 
-        email 
-      FROM 
-        users
-      WHERE
-        LOWER(email) = LOWER($1)
-      ;`,
-      values: [email],
-    });
-    if (results.rowCount > 0) {
-      throw new ValidationError({
-        message: "Email informado já está em uso.",
-        action: "Utilize outro email para cadastrar o usuário.",
-      });
-    }
-  }
-  async function validateUniqueUsername(username) {
-    const results = await database.query({
-      text: `
-      SELECT 
-        username 
-      FROM 
-        users
-      WHERE
-        LOWER(username) = LOWER($1)
-      ;`,
-      values: [username],
-    });
-    if (results.rowCount > 0) {
-      throw new ValidationError({
-        message: "Nome de usuário já está em uso.",
-        action: "Utilize outro nome de usuário para continuar o cadastro.",
-      });
-    }
-  }
 
   async function runInsertQuery(userImputValues) {
     const results = await database.query({
@@ -97,8 +60,102 @@ async function create(userImputValues) {
     return results.rows[0];
   }
 }
+
+async function update(username, userInputValues) {
+  const currentUser = await findOneByUsername(username);
+
+  if ("username" in userInputValues) {
+    await validateUniqueUsername(userInputValues.username);
+  }
+
+  if ("email" in userInputValues) {
+    await validateUniqueEmail(userInputValues.email);
+  }
+
+  if ("password" in userInputValues) {
+    await hashPasswordInObject(userInputValues);
+  }
+
+  const userWithNewValues = { ...currentUser, ...userInputValues };
+
+  const updatedUser = await runUpdateQuery(userWithNewValues);
+  return updatedUser;
+
+  async function runUpdateQuery(userWithNewValues) {
+    const results = await database.query({
+      text: `
+      uPDATE
+        users
+      SET
+        username = $2,
+        email = $3,
+        password = $4,
+        updated_at = timezone('utc'::text, now())
+      WHERE
+        id = $1
+      RETURNING
+        *
+      ;
+      `,
+      values: [
+        userWithNewValues.id,
+        userWithNewValues.username,
+        userWithNewValues.email,
+        userWithNewValues.password,
+      ],
+    });
+    return results.rows[0];
+  }
+}
+
+async function validateUniqueUsername(username) {
+  const results = await database.query({
+    text: `
+      SELECT 
+        username 
+      FROM 
+        users
+      WHERE
+        LOWER(username) = LOWER($1)
+      ;`,
+    values: [username],
+  });
+  if (results.rowCount > 0) {
+    throw new ValidationError({
+      message: "Nome de usuário já está em uso.",
+      action: "Utilize outro nome de usuário para realizar esta operação.",
+    });
+  }
+}
+
+async function validateUniqueEmail(email) {
+  const results = await database.query({
+    text: `
+      SELECT 
+        email 
+      FROM 
+        users
+      WHERE
+        LOWER(email) = LOWER($1)
+      ;`,
+    values: [email],
+  });
+  if (results.rowCount > 0) {
+    throw new ValidationError({
+      message: "Email informado já está em uso.",
+      action: "Utilize outro email para realizar esta operação.",
+    });
+  }
+}
+
+async function hashPasswordInObject(userImputValues) {
+  const hashedPassword = await password.hash(userImputValues.password);
+  userImputValues.password = hashedPassword;
+}
+
 const user = {
   create,
   findOneByUsername,
+  update,
 };
 export default user;
