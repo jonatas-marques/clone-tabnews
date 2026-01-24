@@ -2,6 +2,36 @@ import database from "infra/database.js";
 import { ValidationError, NotFoundError } from "infra/errors.js";
 import password from "models/password.js";
 
+async function findOneById(id) {
+  const userFound = await runSelectQuery(id);
+  return userFound;
+
+  async function runSelectQuery(id) {
+    const results = await database.query({
+      text: `
+      SELECT 
+        * 
+      FROM 
+        users
+      WHERE
+        id = $1
+      LIMIT
+        1
+      ;`,
+      values: [id],
+    });
+
+    if (results.rowCount === 0) {
+      throw new NotFoundError({
+        message: "ID não encontrado.",
+        action: "Verifique o ID do usuário informado.",
+        status_code: 404,
+      });
+    }
+
+    return results.rows[0];
+  }
+}
 async function findOneByUsername(username) {
   const userFound = await runSelectQuery(username);
   return userFound;
@@ -184,9 +214,10 @@ async function hashPasswordInObject(userImputValues) {
 }
 
 const user = {
+  create,
+  findOneById,
   findOneByUsername,
   findOneByEmail,
-  create,
   update,
 };
 export default user;
