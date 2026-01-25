@@ -28,8 +28,6 @@ async function getHandler(request, response) {
   const databaseOpenConnectionsValue =
     databaseOpenConnectionsResult.rows[0].count;
 
-  console.log(databaseOpenConnectionsValue);
-
   response.status(200).json({
     updated_at: updatedAt,
     dependencies: {
