@@ -69,7 +69,6 @@ async function injectAnonymousOrUser(request, response, next) {
 
   injectAnonymousUser(request);
   return next();
-  // parte 2
 }
 
 async function injectAuthenticatedUser(request) {

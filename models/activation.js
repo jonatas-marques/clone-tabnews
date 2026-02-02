@@ -1,10 +1,11 @@
 import database from "infra/database.js";
 import email from "infra/email.js";
 import webserver from "infra/webserver.js";
-import { NotFoundError } from "infra/errors.js";
+import { ForbiddenError, NotFoundError } from "infra/errors.js";
 import user from "models/user.js";
+import authorization from "./authorization";
 
-const EXPIRATION_IN_MILISECONDS = 60 * 15 * 1000; // 15 minutos
+const EXPIRATION_IN_MILLISECONDS = 60 * 15 * 1000; // 15 minutos
 
 async function findOneValidById(tokenId) {
   const activationTokenObject = runSelectQuery(tokenId);
@@ -30,7 +31,7 @@ async function findOneValidById(tokenId) {
     if (results.rowCount === 0) {
       throw new NotFoundError({
         message: "O token de ativação utilizado não foi encontrado ou expirou.",
-        action: "Faça um novo cadastro",
+        action: "Faça um novo cadastro.",
       });
     }
     return results.rows[0];
@@ -38,7 +39,7 @@ async function findOneValidById(tokenId) {
 }
 
 async function create(userId) {
-  const expiresAt = new Date(Date.now() + EXPIRATION_IN_MILISECONDS);
+  const expiresAt = new Date(Date.now() + EXPIRATION_IN_MILLISECONDS);
   const newToken = await runInsertQuery(userId, expiresAt);
   return newToken;
 
@@ -91,7 +92,19 @@ async function markTokenAsUsed(activationTokenId) {
 }
 
 async function activateUserByUserId(userId) {
-  const activatedUser = await user.setFeatures(userId, ["create:session"]);
+  const userToActivate = await user.findOneById(userId);
+
+  if (!authorization.can(userToActivate, "read:activation_token")) {
+    throw new ForbiddenError({
+      message: "Você não pode mais usar tokens de ativação.",
+      action: "Entre em contato com o suporte.",
+    });
+  }
+
+  const activatedUser = await user.setFeatures(userId, [
+    "create:session",
+    "read:session",
+  ]);
   return activatedUser;
 }
 
@@ -101,6 +114,7 @@ const activation = {
   findOneValidById,
   markTokenAsUsed,
   activateUserByUserId,
+  EXPIRATION_IN_MILLISECONDS,
 };
 
 export default activation;
