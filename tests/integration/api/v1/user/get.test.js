@@ -27,7 +27,7 @@ describe("GET /api/v1/user", () => {
     });
   });
   describe("Default user", () => {
-    test("With  valid session", async () => {
+    test("With valid session", async () => {
       const createdUser = await orchestrator.createUser({
         username: "UserWithValidSession",
       });
@@ -152,7 +152,7 @@ describe("GET /api/v1/user", () => {
       });
     });
 
-    test("With  nonexistent session", async () => {
+    test("With nonexistent session", async () => {
       const nonexistentToken =
         "10b3f8272f0b4cbec6f18716ea6ac6ccfb7dc0a3c23ef91b7c981f3eb6a15f783c9ff1d2abfea050f8eda313651f11c3";
 
@@ -186,7 +186,7 @@ describe("GET /api/v1/user", () => {
         httpOnly: true,
       });
     });
-    test("With  expired session", async () => {
+    test("With expired session", async () => {
       jest.useFakeTimers({
         now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
       });
